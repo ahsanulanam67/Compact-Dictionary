@@ -18,7 +18,7 @@ A cross-platform dictionary application with:
 
 ### Desktop Version (Windows)
 1. Download the latest `.exe` from [Releases](https://github.com/ahsanulanam67/Compact-Dictionary/blob/main/E2B.exe)
-2. Double-click `Saboj_Dictionary.exe` to run
+2. Double-click `E2B.exe` to run
 
 ### Mobile Version (Android)
 1. Download APK from [Releases](https://github.com/yourusername/dictionary-app/releases)
