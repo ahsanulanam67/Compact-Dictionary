@@ -6,7 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 import textwrap
 
-# Helper functions to fetch and parse dictionary data
+# -------------------- Helper functions --------------------
 def get_english_definition(word):
     try:
         url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
@@ -20,6 +20,16 @@ def get_bangla_definition(word):
     try:
         url = f"https://www.english-bangla.com/dictionary/{word}"
         response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return response.text
+    except Exception:
+        return None
+
+def get_cambridge_definition(word):
+    try:
+        url = f"https://dictionary.cambridge.org/dictionary/english/{word}"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         return response.text
     except Exception:
@@ -42,21 +52,18 @@ def parse_english_data(data):
                 'example': d.get('example', '')
             })
         examples = [d['example'] for d in meaning.get('definitions', []) if 'example' in d][:3]
-        meaning_data = {
+        result['meanings'].append({
             'partOfSpeech': meaning.get('partOfSpeech', ''),
             'definitions': definitions,
-            'synonyms': meaning.get('synonyms', [])[:3],
-            'antonyms': meaning.get('antonyms', [])[:3],
+            'synonyms': meaning.get('synonyms', [])[:5],
+            'antonyms': meaning.get('antonyms', [])[:5],
             'examples': examples
-        }
-        result['meanings'].append(meaning_data)
+        })
     return result
 
 def parse_bangla_data(html):
     soup = BeautifulSoup(html, 'html.parser')
-    meanings = []
-    for span in soup.find_all('span', class_='format1')[:3]:
-        meanings.append(span.get_text(strip=True))
+    meanings = [span.get_text(strip=True) for span in soup.find_all('span', class_='format1')[:3]]
     pron_span = soup.find('span', class_='prnc')
     pronunciation = pron_span.get_text(strip=True) if pron_span else ''
     return {
@@ -64,7 +71,49 @@ def parse_bangla_data(html):
         'pronunciation': pronunciation
     }
 
-# Fonts
+def parse_cambridge_data(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    result = {
+        'definitions': [],
+        'examples_by_pos': {}
+    }
+    entries = soup.find_all('div', class_='entry-body__el')
+    for entry in entries[:3]:
+        pos = entry.find('span', class_='pos')
+        pos_text = pos.get_text(strip=True).lower() if pos else ''
+        def_blocks = entry.find_all('div', class_='def-block ddef_block')
+        for def_block in def_blocks[:3]:
+            definition = def_block.find('div', class_='def ddef_d db')
+            if definition:
+                def_text = ' '.join(definition.get_text(' ', strip=True).split())
+                def_text = re.sub(r'[^\w\s;,:\.\-]', '', def_text)
+                def_text = def_text.replace(':', ': ')
+                if def_text:
+                    result['definitions'].append({
+                        'partOfSpeech': pos_text,
+                        'definition': def_text
+                    })
+
+            # Examples from <span class="eg deg">
+            example_spans = def_block.find_all('span', class_='eg deg')
+
+            # Also find <ul class="hul-u hul-u0 ca_b daccord_b lm-0"> inside this def_block (or right after)
+            # and get all <li class="eg dexamp hax"> inside it
+          
+            # Combine examples
+            all_examples = example_spans 
+            
+            for ex in all_examples[:2]:  # limit to 2 examples per def_block
+                ex_text = ' '.join(ex.stripped_strings)
+                ex_text = ' '.join(ex_text.split())
+                if ex_text:
+                    result.setdefault('examples_by_pos', {}).setdefault(pos_text, []).append(ex_text)
+    return result
+
+
+
+
+# Fonts and colors configuration (same as before)
 FONT_TITLE = ("Segoe UI Semibold", 24, "bold")
 FONT_SECTION = ("Segoe UI Semilight", 16, "bold")
 FONT_LABEL = ("Segoe UI", 12, "bold")
@@ -72,7 +121,7 @@ FONT_NORMAL = ("Segoe UI", 11)
 FONT_MONO = ("Consolas", 11)
 FONT_SUBTITLE = ("Segoe UI Light", 12)
 
-# Light mode colors
+# Light and dark theme colors (same as before)
 light_theme = {
     "bg": "#f8f9fa",
     "text_bg": "#ffffff",
@@ -99,7 +148,6 @@ light_theme = {
     "entry_highlight": "#007acc"
 }
 
-# Dark mode colors
 dark_theme = {
     "bg": "#212529",
     "text_bg": "#2c3034",
@@ -230,7 +278,7 @@ class DictionaryApp:
         # Footer
         self.footer_lbl = tk.Label(
             root,
-            text="📘 Powered by dictionaryapi.dev & english-bangla.com | Built by Saboj",
+            text="📘 Powered by Cambridege & english-bangla.com | Built by Saboj",
             font=("Segoe UI", 9),
             fg="#888888",
             bg=self.colors["bg"]
@@ -240,7 +288,6 @@ class DictionaryApp:
         self.configure_tags()
         
     def configure_styles(self):
-        # Search button style
         self.style.configure('Search.TButton',
             borderwidth=0,
             relief="flat",
@@ -260,7 +307,6 @@ class DictionaryApp:
             ]
         )
         
-        # Toggle button style
         self.style.configure('Toggle.TButton',
             borderwidth=0,
             relief="flat",
@@ -280,7 +326,6 @@ class DictionaryApp:
             ]
         )
         
-        # Scrollbar style
         self.style.configure('Vertical.TScrollbar',
             gripcount=0,
             background="#cccccc",
@@ -290,58 +335,22 @@ class DictionaryApp:
             arrowsize=15
         )
 
-    # def configure_tags(self):
-    #     c = self.colors
-    #     txt = self.txt_result
-    #     txt.tag_configure("title", font=FONT_TITLE, foreground=c["title_fg"], spacing1=10, spacing3=10)
-    #     txt.tag_configure("section", font=FONT_SECTION, foreground=c["section_fg"], spacing1=15, spacing3=8)
-    #     txt.tag_configure("label", font=FONT_LABEL, foreground=c["label_fg"])
-    #     txt.tag_configure("pronunciation", font=FONT_NORMAL, foreground=c["pronunciation_fg"])
-    #     txt.tag_configure("bangla_meaning", font=FONT_NORMAL, foreground=c["bangla_meaning_fg"], lmargin1=20, spacing2=-10)
-    #     txt.tag_configure("definition", font=FONT_MONO, foreground=c["definition_fg"], lmargin1=20, spacing2=-10)
-    #     txt.tag_configure("examples_label", font=FONT_LABEL, foreground=c["examples_label_fg"], spacing3=2)
-    #     txt.tag_configure("examples", font=FONT_NORMAL, foreground=c["examples_fg"], lmargin1=30, spacing2=2)
-    #     txt.tag_configure("synonyms", font=FONT_NORMAL, foreground=c["synonyms_fg"])
-    #     txt.tag_configure("antonyms", font=FONT_NORMAL, foreground=c["antonyms_fg"])
-    #     txt.tag_configure("info", font=FONT_LABEL, foreground=c["info_fg"], spacing3=8)
-    #     txt.tag_configure("error", font=FONT_LABEL, foreground=c["error_fg"])
-    #     txt.tag_configure("divider", font=("Segoe UI", 1), foreground="#e0e0e0", spacing1=10, spacing3=10)
-    
     def configure_tags(self):
         c = self.colors
         txt = self.txt_result
-        # Title (keep original spacing)
         txt.tag_configure("title", font=FONT_TITLE, foreground=c["title_fg"], spacing1=10, spacing3=10)
-        
-        # Section headers - REDUCE spacing after "Bangla Meanings"
-        txt.tag_configure("section", font=FONT_SECTION, foreground=c["section_fg"], spacing1=8, spacing3=4)  # Reduced spacing3
-        
-        # Labels (keep default)
+        txt.tag_configure("section", font=FONT_SECTION, foreground=c["section_fg"], spacing1=8, spacing3=4)
         txt.tag_configure("label", font=FONT_LABEL, foreground=c["label_fg"])
-        
-        # Pronunciation (keep default)
         txt.tag_configure("pronunciation", font=FONT_NORMAL, foreground=c["pronunciation_fg"])
-        
-        # Bangla meanings - REDUCE line spacing
-        txt.tag_configure("bangla_meaning", font=FONT_NORMAL, foreground=c["bangla_meaning_fg"], lmargin1=20, spacing2=0)  # Removed extra spacing
-        
-        # Definitions (keep default)
-        txt.tag_configure("definition", font=FONT_MONO, foreground=c["definition_fg"], lmargin1=20,spacing2=0)
-        
-        # Examples (keep default)
+        txt.tag_configure("bangla_meaning", font=FONT_NORMAL, foreground=c["bangla_meaning_fg"], lmargin1=20, spacing2=0)
+        txt.tag_configure("definition", font=FONT_MONO, foreground=c["definition_fg"], lmargin1=20, spacing2=0)
         txt.tag_configure("examples_label", font=FONT_LABEL, foreground=c["examples_label_fg"], spacing3=2)
         txt.tag_configure("examples", font=FONT_NORMAL, foreground=c["examples_fg"], lmargin1=30, spacing2=2)
-        
-        # Synonyms/Antonyms (keep default)
         txt.tag_configure("synonyms", font=FONT_NORMAL, foreground=c["synonyms_fg"])
         txt.tag_configure("antonyms", font=FONT_NORMAL, foreground=c["antonyms_fg"])
-        
-        # Info/Error (keep default)
         txt.tag_configure("info", font=FONT_LABEL, foreground=c["info_fg"], spacing3=8)
         txt.tag_configure("error", font=FONT_LABEL, foreground=c["error_fg"])
-        
-        # Divider - REDUCE spacing around the line
-        txt.tag_configure("divider", font=("Segoe UI", 1), foreground="#e0e0e0", spacing1=5, spacing3=5)  # Reduced spacing
+        txt.tag_configure("divider", font=("Segoe UI", 1), foreground="#e0e0e0", spacing1=5, spacing3=5)
 
     def toggle_theme(self):
         if self.theme == 'light':
@@ -353,7 +362,6 @@ class DictionaryApp:
             self.colors = light_theme
             self.btn_toggle.config(text="🌙 Dark Mode")
 
-        # Update all colors
         self.root.configure(bg=self.colors["bg"])
         self.header_frame.config(bg=self.colors["bg"])
         self.search_frame.config(bg=self.colors["bg"])
@@ -362,20 +370,17 @@ class DictionaryApp:
         self.subtitle_lbl.config(fg="#6c757d", bg=self.colors["bg"])
         self.footer_lbl.config(bg=self.colors["bg"])
         
-        # Update entry widget
         self.entry_word.config(
             bg=self.colors["entry_bg"],
             fg=self.colors["entry_fg"],
             highlightcolor=self.colors["entry_highlight"]
         )
         
-        # Update text widget
         self.txt_result.config(
             bg=self.colors["text_bg"],
             fg=self.colors["text_fg"]
         )
         
-        # Reconfigure styles and tags
         self.configure_styles()
         self.configure_tags()
 
@@ -429,7 +434,7 @@ class DictionaryApp:
         # Bangla meanings
         if bangla_data.get('meanings'):
             self.insert_with_tag("🌐 Bangla Meanings:\n", "section")
-            for i, meaning in enumerate(bangla_data['meanings'][:3], 1):  # Limit to 3 meanings
+            for i, meaning in enumerate(bangla_data['meanings'][:3], 1):
                 wrapped = textwrap.fill(meaning, width=80, subsequent_indent='    ')
                 self.insert_with_tag(f"  {i}. {wrapped}\n", "bangla_meaning")
             self.insert_with_tag("\n", "divider")
@@ -448,7 +453,7 @@ class DictionaryApp:
                 def_wrapped = textwrap.fill(d.get('definition', ''), width=80, subsequent_indent='      ')
                 self.insert_with_tag(f"  {i}. {def_wrapped}\n", "definition")
                 
-                # Show example if it exists for this specific definition (limit to 1 per definition)
+                # Show example if it exists for this specific definition
                 if d.get('example'):
                     ex_wrapped = textwrap.fill(d['example'], width=75, initial_indent='   • ', subsequent_indent='     ')
                     self.insert_with_tag(f"{ex_wrapped}\n", "examples")
@@ -457,19 +462,19 @@ class DictionaryApp:
             examples = meaning.get('examples', [])[:3]
             if examples:
                 self.insert_with_tag("📌 Examples:\n", "examples_label")
-                for ex in examples[:3]:  # Ensure no more than 3
+                for ex in examples[:3]:
                     ex_wrapped = textwrap.fill(ex, width=75, initial_indent='   • ', subsequent_indent='     ')
                     self.insert_with_tag(f"{ex_wrapped}\n", "examples")
                 self.insert_with_tag("\n")
 
-            # Synonyms (limit to 3)
-            synonyms = meaning.get('synonyms', [])[:3]
+            # Synonyms (limit to 5)
+            synonyms = meaning.get('synonyms', [])[:5]
             if synonyms:
                 self.insert_with_tag("🔄 Synonyms: ", "label")
                 self.insert_with_tag(", ".join(synonyms) + "\n", "synonyms")
 
-            # Antonyms (limit to 3)
-            antonyms = meaning.get('antonyms', [])[:3]
+            # Antonyms (limit to 5)
+            antonyms = meaning.get('antonyms', [])[:5]
             if antonyms:
                 self.insert_with_tag("🔄 Antonyms: ", "label")
                 self.insert_with_tag(", ".join(antonyms) + "\n", "antonyms")
@@ -479,12 +484,77 @@ class DictionaryApp:
         self.txt_result.config(state=tk.DISABLED)
 
     def lookup_word(self, word):
+    # Fetch raw data
+        cambridge_html = get_cambridge_definition(word)
         english_json = get_english_definition(word)
         bangla_html = get_bangla_definition(word)
+
+        # Parse data
+        cambridge_data = parse_cambridge_data(cambridge_html) if cambridge_html else {}
         english_data = parse_english_data(english_json) if english_json else {}
         bangla_data = parse_bangla_data(bangla_html) if bangla_html else {}
 
-        self.display_result(english_data, bangla_data)
+        # Build a new english_data structure starting from Cambridge
+        merged_data = {
+            'word': word,
+            'phonetic': english_data.get('phonetic', ''),
+            'meanings': []
+        }
+
+        if cambridge_data.get('definitions'):
+        # Build from Cambridge data
+            pos_group = {}
+            for d in cambridge_data['definitions']:
+                pos = d.get('partOfSpeech', '').lower()
+                if pos not in pos_group:
+                    pos_group[pos] = []
+                pos_group[pos].append({'definition': d['definition'], 'example': ''})
+
+            for pos, defs in pos_group.items():
+                # Try to find matching partOfSpeech from API to get synonyms/antonyms
+                api_matching = next((m for m in english_data.get('meanings', []) if m.get('partOfSpeech', '').lower() == pos), {})
+                matched_examples = cambridge_data.get('examples_by_pos', {}).get(pos, [])[:3]
+                
+                merged_data['meanings'].append({
+                    'partOfSpeech': pos,
+                    'definitions': defs[:3],
+                    'examples': matched_examples,
+                    'synonyms': api_matching.get('synonyms', [])[:5],
+                    'antonyms': api_matching.get('antonyms', [])[:5]
+                })
+
+
+        else:
+            # Fallback to API if Cambridge has nothing
+            merged_data = english_data
+
+        self.display_result(merged_data, bangla_data)
+        
+    def merge_data(word, english_data, cambridge_data):
+        merged_data = {
+            'word': word,
+            'phonetic': english_data.get('phonetic', ''),
+            'meanings': []
+        }
+        if cambridge_data.get('definitions'):
+            pos_group = {}
+            for d in cambridge_data['definitions']:
+                pos = d.get('partOfSpeech', '').lower()
+                pos_group.setdefault(pos, []).append({'definition': d['definition'], 'example': ''})
+
+            for pos, defs in pos_group.items():
+                api_matching = next((m for m in english_data.get('meanings', []) if m.get('partOfSpeech', '').lower() == pos), {})
+                matched_examples = cambridge_data.get('examples_by_pos', {}).get(pos, [])[:3]
+                merged_data['meanings'].append({
+                    'partOfSpeech': pos,
+                    'definitions': defs[:3],
+                    'examples': matched_examples,
+                    'synonyms': api_matching.get('synonyms', [])[:5],
+                    'antonyms': api_matching.get('antonyms', [])[:5]
+                })
+        else:
+            merged_data = english_data
+        return merged_data
 
     def on_search(self, event=None):
         word = self.entry_word.get().strip()
@@ -496,7 +566,6 @@ class DictionaryApp:
         self.insert_with_tag("Searching... Please wait\n", "info")
         self.txt_result.config(state=tk.DISABLED)
         
-        # Disable search button during operation
         self.btn_search.state(['disabled'])
         
         def task():
