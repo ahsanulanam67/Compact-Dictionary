@@ -269,7 +269,7 @@ class DictionaryApp:
         # Footer
         self.footer_lbl = tk.Label(
             root,
-            text="📘 Powered by dictionaryapi.dev & english-bangla.com | Built by Saboj",
+            text="📘 Powered by Cambridge & english-bangla.com | Built by Saboj",
             font=("Segoe UI", 9),
             fg="#888888",
             bg=self.colors["bg"]

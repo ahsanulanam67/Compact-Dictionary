@@ -13,12 +13,13 @@ dependencies:
   http: ^1.2.2
   google_fonts: ^6.1.0
   cupertino_icons: ^1.0.6
+  flutter_cache_manager: ^3.3.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
-  flutter_launcher_icons: "^0.13.1"
+  flutter_launcher_icons: ^0.13.1
   
 
 flutter:
@@ -32,5 +33,5 @@ flutter:
 
 flutter_icons:
   android: true
-  ios: true
-  image_path: "assets/icon/e2e.ico"
+  # ios: true
+  image_path: "assets/icon/e2e.png"

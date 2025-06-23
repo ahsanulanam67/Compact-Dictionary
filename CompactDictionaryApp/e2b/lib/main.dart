@@ -252,7 +252,7 @@ class _DictionaryAppState extends State<DictionaryApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Dictionary App',
+      title: 'E2E & E2B Dictionary',
       theme: _darkMode
           ? ThemeData.dark().copyWith(
               scaffoldBackgroundColor: Colors.grey[900],
@@ -275,7 +275,11 @@ class _DictionaryAppState extends State<DictionaryApp> {
             ),
       home: Scaffold(
         appBar: AppBar(
-          title: Text('Dictionary App'),
+          title: Text('E2E & E2B DICTIONARY',
+              style: GoogleFonts.hindSiliguri(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              )),
           actions: [
             IconButton(
               icon: Icon(_darkMode ? Icons.light_mode : Icons.dark_mode),
@@ -290,7 +294,7 @@ class _DictionaryAppState extends State<DictionaryApp> {
               TextField(
                 controller: _controller,
                 decoration: InputDecoration(
-                  labelText: 'Search for a word',
+                  hintText: 'Search for a word',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -389,6 +393,22 @@ class _DictionaryAppState extends State<DictionaryApp> {
                                         'English Definitions',
                                         _result!['english']['meanings'],
                                       ),
+                                    // Footer moved inside the scrollable content
+                                    Padding(
+                                      padding:
+                                          EdgeInsets.only(top: 40, bottom: 20),
+                                      child: Center(
+                                        child: Text(
+                                          '© All rights reserved to Ahsanul Anam Saboj',
+                                          style: GoogleFonts.hindSiliguri(
+                                            fontSize: 12,
+                                            color: _darkMode
+                                                ? Colors.grey[500]
+                                                : Colors.grey[600],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),

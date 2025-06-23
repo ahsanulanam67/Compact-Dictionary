@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import dictionary_lookup
+from . import views
 
 urlpatterns = [
-    path("dictionary/", dictionary_lookup),
+    path('api/dictionary', views.dictionary_lookup),  # Without trailing slash
+    path('api/dictionary/', views.dictionary_lookup),  # With trailing slash
 ]
