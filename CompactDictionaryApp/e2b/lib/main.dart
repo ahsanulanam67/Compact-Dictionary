@@ -20,7 +20,8 @@ class _DictionaryAppState extends State<DictionaryApp> {
   bool _loading = false;
   final FocusNode _searchFocusNode = FocusNode();
 
-  final String apiBaseUrl = 'http://192.168.0.102:8000/api/dictionary?word=';
+  final String apiBaseUrl =
+      'https://compact-dictionary-api.onrender.com/api/dictionary/?word';
 
   Future<void> fetchDefinition(String word) async {
     if (word.isEmpty) return;
