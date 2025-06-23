@@ -93,24 +93,15 @@ def parse_cambridge_data(html):
                         'partOfSpeech': pos_text,
                         'definition': def_text
                     })
-
-            # Examples from <span class="eg deg">
+            # Get examples from both span.eg.deg and span.eg.dexamp.hax
             example_spans = def_block.find_all('span', class_='eg deg')
-
-            # Also find <ul class="hul-u hul-u0 ca_b daccord_b lm-0"> inside this def_block (or right after)
-            # and get all <li class="eg dexamp hax"> inside it
-          
-            # Combine examples
-            all_examples = example_spans 
-            
-            for ex in all_examples[:2]:  # limit to 2 examples per def_block
+            for ex in example_spans[:2]:  # limit to 2 examples per def_block
                 ex_text = ' '.join(ex.stripped_strings)
                 ex_text = ' '.join(ex_text.split())
                 if ex_text:
                     result.setdefault('examples_by_pos', {}).setdefault(pos_text, []).append(ex_text)
+
     return result
-
-
 
 
 # Fonts and colors configuration (same as before)
@@ -278,7 +269,7 @@ class DictionaryApp:
         # Footer
         self.footer_lbl = tk.Label(
             root,
-            text="📘 Powered by Cambridege & english-bangla.com | Built by Saboj",
+            text="📘 Powered by dictionaryapi.dev & english-bangla.com | Built by Saboj",
             font=("Segoe UI", 9),
             fg="#888888",
             bg=self.colors["bg"]
@@ -502,26 +493,25 @@ class DictionaryApp:
         }
 
         if cambridge_data.get('definitions'):
-        # Build from Cambridge data
-            pos_group = {}
-            for d in cambridge_data['definitions']:
-                pos = d.get('partOfSpeech', '').lower()
-                if pos not in pos_group:
-                    pos_group[pos] = []
-                pos_group[pos].append({'definition': d['definition'], 'example': ''})
+                pos_group = {}
+                for d in cambridge_data['definitions']:
+                    pos = d.get('partOfSpeech', '').lower()
+                    if pos not in pos_group:
+                        pos_group[pos] = []
+                    pos_group[pos].append({'definition': d['definition'], 'example': ''})
 
-            for pos, defs in pos_group.items():
-                # Try to find matching partOfSpeech from API to get synonyms/antonyms
-                api_matching = next((m for m in english_data.get('meanings', []) if m.get('partOfSpeech', '').lower() == pos), {})
-                matched_examples = cambridge_data.get('examples_by_pos', {}).get(pos, [])[:3]
-                
-                merged_data['meanings'].append({
-                    'partOfSpeech': pos,
-                    'definitions': defs[:3],
-                    'examples': matched_examples,
-                    'synonyms': api_matching.get('synonyms', [])[:5],
-                    'antonyms': api_matching.get('antonyms', [])[:5]
-                })
+                for pos, defs in pos_group.items():
+                    # Try to find matching partOfSpeech from API to get synonyms/antonyms
+                    api_matching = next((m for m in english_data.get('meanings', []) if m.get('partOfSpeech', '').lower() == pos), {})
+                    matched_examples = cambridge_data.get('examples_by_pos', {}).get(pos, [])[:3]
+                    
+                    merged_data['meanings'].append({
+                        'partOfSpeech': pos,
+                        'definitions': defs[:3],
+                        'examples': matched_examples,
+                        'synonyms': api_matching.get('synonyms', [])[:5],
+                        'antonyms': api_matching.get('antonyms', [])[:5]
+                    })
 
 
         else:
@@ -543,8 +533,10 @@ class DictionaryApp:
                 pos_group.setdefault(pos, []).append({'definition': d['definition'], 'example': ''})
 
             for pos, defs in pos_group.items():
+                # Try to find matching partOfSpeech from API to get synonyms/antonyms
                 api_matching = next((m for m in english_data.get('meanings', []) if m.get('partOfSpeech', '').lower() == pos), {})
                 matched_examples = cambridge_data.get('examples_by_pos', {}).get(pos, [])[:3]
+                
                 merged_data['meanings'].append({
                     'partOfSpeech': pos,
                     'definitions': defs[:3],
@@ -552,6 +544,8 @@ class DictionaryApp:
                     'synonyms': api_matching.get('synonyms', [])[:5],
                     'antonyms': api_matching.get('antonyms', [])[:5]
                 })
+
+
         else:
             merged_data = english_data
         return merged_data
